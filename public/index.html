@@ -113,15 +113,13 @@ body {
   pointer-events: none;
 }
 #since.on { opacity: 1; }
-/* labels share the hint's colour and dim together with it */
+/* labels stay at the hint's resting shade */
 #since i {
   font: 500 12px/1 var(--mono);
   letter-spacing: 0.1em;
   color: var(--dim);
-  opacity: .85;
-  transition: opacity 1.2s ease;
+  opacity: .28;
 }
-#since.rest i { opacity: .28; }
 #since b {
   font-family: var(--serif);
   font-style: italic;
@@ -129,7 +127,7 @@ body {
   font-size: 28px;
   line-height: 1.1;
   color: var(--fg);
-  opacity: .8;
+  opacity: .72;
   font-variant-numeric: lining-nums;
 }
 #since span { display: flex; align-items: baseline; gap: 8px; }
@@ -927,9 +925,8 @@ body {
   function showHint() {
     clearTimeout(hintTimer);
     hint.classList.remove('rest');
-    since.classList.remove('rest');
     hint.classList.add('on');
-    hintTimer = setTimeout(() => { hint.classList.add('rest'); since.classList.add('rest'); }, 7000);
+    hintTimer = setTimeout(() => hint.classList.add('rest'), 7000);
   }
 
   function normDate(v) {
