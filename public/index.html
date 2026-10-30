@@ -91,9 +91,8 @@ body {
   transition: opacity 1.2s ease;
   pointer-events: none;
 }
-#hint.on { opacity: .85; pointer-events: auto; }
-#hint.rest { opacity: .28; }
-#hint.rest:hover { opacity: .85; }
+#hint.on { opacity: .28; pointer-events: auto; }
+#hint.on:hover { opacity: .85; }
 #regrow {
   font: inherit; letter-spacing: inherit; color: inherit;
   background: none; border: 0; padding: 0; cursor: pointer;
@@ -113,7 +112,7 @@ body {
   pointer-events: none;
 }
 #since.on { opacity: 1; }
-/* labels stay at the hint's resting shade */
+/* labels share the hint's shade */
 #since i {
   font: 500 12px/1 var(--mono);
   letter-spacing: 0.1em;
@@ -921,12 +920,8 @@ body {
   const hint = document.getElementById('hint');
   const gate = document.getElementById('gate');
   const input = document.getElementById('d');
-  let hintTimer = 0;
   function showHint() {
-    clearTimeout(hintTimer);
-    hint.classList.remove('rest');
     hint.classList.add('on');
-    hintTimer = setTimeout(() => hint.classList.add('rest'), 7000);
   }
 
   function normDate(v) {
