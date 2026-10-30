@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
 <style>
-/* Layout: one full-bleed canvas; a quiet centered gate (dedication + date) that dissolves into the bouquet; one dim hint line at the bottom. */
+/* Layout: one full-bleed canvas; a quiet centered gate (dedication + date) that dissolves into the bouquet; one dim hint line at the bottom; a small counter centered above the flowers. */
 :root {
   --bg: #060606;
   --fg: #ece5dc;
@@ -91,9 +91,8 @@ body {
   transition: opacity 1.2s ease;
   pointer-events: none;
 }
-#hint.on { opacity: .85; pointer-events: auto; }
-#hint.rest { opacity: .28; }
-#hint.rest:hover { opacity: .85; }
+#hint.on { opacity: .28; pointer-events: auto; }
+#hint.on:hover { opacity: .85; }
 #regrow {
   font: inherit; letter-spacing: inherit; color: inherit;
   background: none; border: 0; padding: 0; cursor: pointer;
@@ -101,8 +100,39 @@ body {
 }
 #regrow:hover { color: var(--fg); }
 #regrow:focus-visible { outline: 1px dashed var(--dim); outline-offset: 4px; }
+
+#since {
+  position: fixed; left: 0; right: 0; margin: 0;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: 2px 20px;
+  opacity: 0;
+  transition: opacity 2.4s ease;
+  pointer-events: none;
+}
+#since.on { opacity: 1; }
+/* labels share the hint's shade */
+#since i {
+  font: 500 12px/1 var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  opacity: .28;
+}
+#since b {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 28px;
+  line-height: 1.1;
+  color: var(--fg);
+  opacity: .72;
+  font-variant-numeric: lining-nums;
+}
+#since span { display: flex; align-items: baseline; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
   #intro { transition: opacity .3s; }
+  #since { transition: opacity .3s; }
 }
 </style>
 </head>
@@ -123,6 +153,8 @@ body {
   <span>·</span>
   <button id="regrow" type="button">neu pflanzen</button>
 </p>
+
+<p id="since" hidden></p>
 
 <script>
 (() => {
@@ -155,9 +187,9 @@ body {
   if (coarse) document.getElementById('hintText').textContent = 'wischen = brise · tippen = windstoß';
 
   // ---------- glyphs & depth layers ----------
-  // brightness ramp in the original's alphabet; every layer is its own offset character grid
-  const RAMP = '.:cxoaCXO0';
-  const SCR = '#%&*+=?$/<>~';
+  // brightness ramp in kalea's alphabet; every layer is its own offset character grid
+  const RAMP = '.:lkeaLKAE';
+  const SCR = 'kaleaKALEA';
   const CHARS = RAMP + SCR;
   const RL = RAMP.length;
   const LAYERS = [
@@ -181,7 +213,9 @@ body {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = window.innerWidth; H = window.innerHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    S = Math.min((H * 0.93) / 880, (W * 0.95) / 760);
+    // keep a band free at the top for the counter
+    const TOP = 32;
+    S = Math.min(((H - TOP) * 0.93) / 880, (W * 0.95) / 760);
     fs = Math.max(5, Math.min(12, Math.round((880 * S) / 112)));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.font = `bold ${fs}px ${MONO}`;
@@ -194,7 +228,7 @@ body {
     tintImg = tctx.createImageData(cols, rows);
     mask.width = cv.width; mask.height = cv.height;
     OX = W / 2;
-    OY = Math.min(H - Math.max(6, H * 0.012), (H + 870 * S) / 2);
+    OY = Math.min(H - Math.max(6, H * 0.012), (H + TOP + 870 * S) / 2);
     gw = Math.ceil(cellW * dpr); gh = Math.ceil(cellH * dpr);
     atlas.width = gw * CHARS.length; atlas.height = gh;
     actx.clearRect(0, 0, atlas.width, atlas.height);
@@ -387,6 +421,9 @@ body {
     const leftStems = stems.filter(s => s.tx < -90);
     const hb = leftStems[(R() * leftStems.length) | 0] || stems[0];
     addFlower(hb, 'brown', { u: rr(0.72, 0.8), ped: { ang: -rr(0.5, 0.8), len: rr(55, 75) } });
+    // one more big lily crowning the top; built last so the rest of the bouquet keeps its shape
+    const crown = makeStem(rr(-30, 30), -rr(745, 765), 'main', rr(55, 70));
+    addFlower(crown, 'star', { R: rr(122, 128) });
   }
 
   // ---------- timing ----------
@@ -883,12 +920,8 @@ body {
   const hint = document.getElementById('hint');
   const gate = document.getElementById('gate');
   const input = document.getElementById('d');
-  let hintTimer = 0;
   function showHint() {
-    clearTimeout(hintTimer);
-    hint.classList.remove('rest');
     hint.classList.add('on');
-    hintTimer = setTimeout(() => hint.classList.add('rest'), 7000);
   }
 
   function normDate(v) {
@@ -916,6 +949,33 @@ body {
   const KEY = 2207576843;
   const ok = () => fnv(normDate(input.value)) === KEY;
 
+  // time since 03.10.2026 in whole calendar months, the rest in weeks and days; zero parts stay out
+  const since = document.getElementById('since');
+  function sinceParts(now) {
+    let months = (now.getFullYear() - 2026) * 12 + now.getMonth() - 9;
+    if (now.getDate() < 3) months--;
+    if (months < 0) return [];
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Math.round((today - new Date(2026, 9 + months, 3)) / 864e5);
+    return [
+      ['jahr', 'jahre', Math.floor(months / 12)],
+      ['monat', 'monate', months % 12],
+      ['woche', 'wochen', Math.floor(days / 7)],
+      ['tag', 'tage', days % 7],
+    ].filter(p => p[2] > 0);
+  }
+  function showSince() {
+    since.replaceChildren(...sinceParts(new Date()).map(([one, many, n]) => {
+      const part = document.createElement('span');
+      const label = document.createElement('i');
+      const value = document.createElement('b');
+      label.textContent = n === 1 ? one : many;
+      value.textContent = n;
+      part.append(label, value);
+      return part;
+    }));
+  }
+
   function start() {
     if (started) return;
     input.blur();
@@ -925,6 +985,10 @@ body {
     intro.classList.add('gone');
     setTimeout(() => { intro.hidden = true; }, 1200);
     setTimeout(showHint, reduce ? 300 : 13000);
+    showSince();
+    setInterval(showSince, 60000);
+    since.hidden = false;
+    setTimeout(() => since.classList.add('on'), reduce ? 300 : 6000);
   }
   function regrow() {
     seed = (Math.random() * 1e9) | 0;
