@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
 <style>
-/* Layout: one full-bleed canvas; a quiet centered gate (dedication + date) that dissolves into the bouquet; one dim hint line at the bottom; a small counter in the bottom-left corner. */
+/* Layout: one full-bleed canvas; a quiet centered gate (dedication + date) that dissolves into the bouquet; one dim hint line at the bottom; a small counter centered above the flowers. */
 :root {
   --bg: #060606;
   --fg: #ece5dc;
@@ -103,17 +103,18 @@ body {
 #regrow:focus-visible { outline: 1px dashed var(--dim); outline-offset: 4px; }
 
 #since {
-  position: fixed; margin: 0;
-  left: max(18px, env(safe-area-inset-left, 0px));
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-  display: grid; grid-template-columns: auto auto; gap: 1px 12px; align-items: baseline;
+  position: fixed; left: 0; right: 0; margin: 0;
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: 2px 20px;
   opacity: 0;
   transition: opacity 2.4s ease;
   pointer-events: none;
 }
 #since.on { opacity: .8; }
 #since i {
-  font: 500 10px/1 var(--mono);
+  font: 500 12px/1 var(--mono);
   letter-spacing: 0.1em;
   color: var(--dim);
 }
@@ -121,20 +122,12 @@ body {
   font-family: var(--serif);
   font-style: italic;
   font-weight: 400;
-  font-size: 22px;
+  font-size: 28px;
   line-height: 1.1;
   color: var(--fg);
   font-variant-numeric: lining-nums;
 }
-#since span { display: contents; }
-@media (min-width: 1100px) {
-  #since { display: flex; gap: 22px; }
-  #since span { display: flex; align-items: baseline; gap: 8px; }
-}
-/* the hint wraps onto two lines on phones */
-@media (max-width: 639px) {
-  #since { bottom: calc(env(safe-area-inset-bottom, 0px) + 56px); }
-}
+#since span { display: flex; align-items: baseline; gap: 8px; }
 @media (prefers-reduced-motion: reduce) {
   #intro { transition: opacity .3s; }
   #since { transition: opacity .3s; }
@@ -218,7 +211,9 @@ body {
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = window.innerWidth; H = window.innerHeight;
     cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
-    S = Math.min((H * 0.93) / 880, (W * 0.95) / 760);
+    // keep a band free at the top for the counter
+    const TOP = 32;
+    S = Math.min(((H - TOP) * 0.93) / 880, (W * 0.95) / 760);
     fs = Math.max(5, Math.min(12, Math.round((880 * S) / 112)));
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.font = `bold ${fs}px ${MONO}`;
@@ -231,7 +226,7 @@ body {
     tintImg = tctx.createImageData(cols, rows);
     mask.width = cv.width; mask.height = cv.height;
     OX = W / 2;
-    OY = Math.min(H - Math.max(6, H * 0.012), (H + 870 * S) / 2);
+    OY = Math.min(H - Math.max(6, H * 0.012), (H + TOP + 870 * S) / 2);
     gw = Math.ceil(cellW * dpr); gh = Math.ceil(cellH * dpr);
     atlas.width = gw * CHARS.length; atlas.height = gh;
     actx.clearRect(0, 0, atlas.width, atlas.height);
