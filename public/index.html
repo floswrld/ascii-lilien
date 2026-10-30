@@ -198,6 +198,10 @@ body {
     { ox: 0.5, oy: 0.25, br: 1.12, sc: 1.08, shadow: 0.58 }, // front
   ];
   const Z1 = -16, Z2 = 30;
+  // phone cells are tiny: offset grids stacked on top of each other read as mush, so all layers
+  // share one grid and each cell shows only its frontmost glyph
+  if (coarse) for (const L of LAYERS) { L.ox = L.oy = 0; L.sc = 1; L.shadow = 0; }
+  const CELL_FILL = 0.3;
   for (const L of LAYERS) {
     L.c = document.createElement('canvas');
     L.x = L.c.getContext('2d', { willReadFrequently: true });
@@ -209,7 +213,7 @@ body {
   const sil = document.createElement('canvas'), sctx = sil.getContext('2d');
   let tintImg = null;
 
-  let W, H, dpr, fs, cellW, cellH, cols, rows, S, OX, OY, gw, gh;
+  let W, H, dpr, fs, cellW, cellH, cols, rows, S, OX, OY, gw, gh, taken;
   function resize() {
     // phones are 3x: a lower cap gets stretched by the browser and softens every glyph
     dpr = Math.min(window.devicePixelRatio || 1, 3);
@@ -226,6 +230,7 @@ body {
     cellH = fs;
     cols = Math.ceil(W / cellW) + 1; rows = Math.ceil(H / cellH) + 1;
     for (const L of LAYERS) { L.c.width = cols; L.c.height = rows; }
+    taken = new Uint8Array(cols * rows);
     tint.width = cols; tint.height = rows;
     sil.width = cols; sil.height = rows;
     tintImg = tctx.createImageData(cols, rows);
@@ -818,7 +823,8 @@ body {
       for (let x = 0; x < cols; x++) {
         const i = (row + x) << 2;
         const a = img[i + 3];
-        if (a < 26) { td[i + 3] = 0; continue; }
+        if (a < 26 || (coarse && taken[row + x])) { td[i + 3] = 0; continue; }
+        taken[row + x] = 1;
         any++;
         const k = a / 255;
         const r0 = img[i], g0 = img[i + 1], b0 = img[i + 2];
@@ -854,7 +860,6 @@ body {
     mctx.globalCompositeOperation = 'source-over';
 
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    // phone cells are so small that a smoothed wash smears the glyphs behind it: keep it hard and faint
     ctx.imageSmoothingEnabled = !coarse;
     if (L.shadow) {
       // this layer casts a soft shadow on everything behind it
@@ -868,8 +873,14 @@ body {
       ctx.globalAlpha = L.shadow;
       ctx.drawImage(sil, oxD + cwD * 0.35, oyD + chD * 0.45, cols * cwD, rows * chD);
     }
-    ctx.globalAlpha = (coarse ? 0.1 : 0.42) * L.br;
-    ctx.drawImage(L.c, oxD, oyD, cols * cwD, rows * chD);
+    if (coarse) {
+      // a smoothed wash would smear the tiny glyphs: fill each cell with a hard block of its own colour
+      ctx.globalAlpha = CELL_FILL;
+      ctx.drawImage(tint, oxD, oyD, cols * cwD, rows * chD);
+    } else {
+      ctx.globalAlpha = 0.42 * L.br;
+      ctx.drawImage(L.c, oxD, oyD, cols * cwD, rows * chD);
+    }
     ctx.globalAlpha = 1;
     ctx.drawImage(mask, 0, 0);
   }
@@ -901,7 +912,12 @@ body {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalAlpha = 1;
     ctx.fillStyle = BG; ctx.fillRect(0, 0, cv.width, cv.height);
-    for (let li = 0; li < LAYERS.length; li++) asciiLayer(LAYERS[li], li);
+    if (coarse) {
+      taken.fill(0);
+      for (let li = LAYERS.length - 1; li >= 0; li--) asciiLayer(LAYERS[li], li);
+    } else {
+      for (let li = 0; li < LAYERS.length; li++) asciiLayer(LAYERS[li], li);
+    }
   }
 
   // ---------- loop ----------
