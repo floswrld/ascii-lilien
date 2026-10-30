@@ -11,7 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap">
 <style>
-/* Layout: one full-bleed canvas; a quiet centered gate (dedication + date) that dissolves into the bouquet; one dim hint line at the bottom. */
+/* Layout: one full-bleed canvas; a quiet centered gate (dedication + date) that dissolves into the bouquet; one dim hint line at the bottom; a small counter in the bottom-left corner. */
 :root {
   --bg: #060606;
   --fg: #ece5dc;
@@ -101,8 +101,43 @@ body {
 }
 #regrow:hover { color: var(--fg); }
 #regrow:focus-visible { outline: 1px dashed var(--dim); outline-offset: 4px; }
+
+#since {
+  position: fixed; margin: 0;
+  left: max(18px, env(safe-area-inset-left, 0px));
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+  display: grid; grid-template-columns: auto auto; gap: 1px 12px; align-items: baseline;
+  opacity: 0;
+  transition: opacity 2.4s ease;
+  pointer-events: none;
+}
+#since.on { opacity: .8; }
+#since i {
+  font: 500 10px/1 var(--mono);
+  letter-spacing: 0.1em;
+  color: var(--dim);
+}
+#since b {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 22px;
+  line-height: 1.1;
+  color: var(--fg);
+  font-variant-numeric: lining-nums;
+}
+#since span { display: contents; }
+@media (min-width: 1100px) {
+  #since { display: flex; gap: 22px; }
+  #since span { display: flex; align-items: baseline; gap: 8px; }
+}
+/* the hint wraps onto two lines on phones */
+@media (max-width: 639px) {
+  #since { bottom: calc(env(safe-area-inset-bottom, 0px) + 56px); }
+}
 @media (prefers-reduced-motion: reduce) {
   #intro { transition: opacity .3s; }
+  #since { transition: opacity .3s; }
 }
 </style>
 </head>
@@ -123,6 +158,8 @@ body {
   <span>·</span>
   <button id="regrow" type="button">neu pflanzen</button>
 </p>
+
+<p id="since" hidden></p>
 
 <script>
 (() => {
@@ -387,6 +424,9 @@ body {
     const leftStems = stems.filter(s => s.tx < -90);
     const hb = leftStems[(R() * leftStems.length) | 0] || stems[0];
     addFlower(hb, 'brown', { u: rr(0.72, 0.8), ped: { ang: -rr(0.5, 0.8), len: rr(55, 75) } });
+    // one more big lily crowning the top; built last so the rest of the bouquet keeps its shape
+    const crown = makeStem(rr(-30, 30), -rr(745, 765), 'main', rr(55, 70));
+    addFlower(crown, 'star', { R: rr(122, 128) });
   }
 
   // ---------- timing ----------
@@ -916,6 +956,33 @@ body {
   const KEY = 2207576843;
   const ok = () => fnv(normDate(input.value)) === KEY;
 
+  // time since 03.10.2026 in whole calendar months, the rest in weeks and days; zero parts stay out
+  const since = document.getElementById('since');
+  function sinceParts(now) {
+    let months = (now.getFullYear() - 2026) * 12 + now.getMonth() - 9;
+    if (now.getDate() < 3) months--;
+    if (months < 0) return [];
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Math.round((today - new Date(2026, 9 + months, 3)) / 864e5);
+    return [
+      ['jahr', 'jahre', Math.floor(months / 12)],
+      ['monat', 'monate', months % 12],
+      ['woche', 'wochen', Math.floor(days / 7)],
+      ['tag', 'tage', days % 7],
+    ].filter(p => p[2] > 0);
+  }
+  function showSince() {
+    since.replaceChildren(...sinceParts(new Date()).map(([one, many, n]) => {
+      const part = document.createElement('span');
+      const label = document.createElement('i');
+      const value = document.createElement('b');
+      label.textContent = n === 1 ? one : many;
+      value.textContent = n;
+      part.append(label, value);
+      return part;
+    }));
+  }
+
   function start() {
     if (started) return;
     input.blur();
@@ -925,6 +992,10 @@ body {
     intro.classList.add('gone');
     setTimeout(() => { intro.hidden = true; }, 1200);
     setTimeout(showHint, reduce ? 300 : 13000);
+    showSince();
+    setInterval(showSince, 60000);
+    since.hidden = false;
+    setTimeout(() => since.classList.add('on'), reduce ? 300 : 6000);
   }
   function regrow() {
     seed = (Math.random() * 1e9) | 0;
